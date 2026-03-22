@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import {
   X, CreditCard, AlignLeft, CheckSquare, Clock, Tag, User, MessageSquare,
-  Palette, Trash2, Archive, Plus, MoreHorizontal
+  Palette, Trash2, Archive, Plus, MoreHorizontal, Sparkles, Loader2,
+  FileText, Copy, Check, ChevronDown, ChevronRight, Download
 } from 'lucide-react';
 import { Card as CardType, Board } from '../../types';
 import { useBoardStore } from '../../stores/boardStore';
 import { formatDueDate, getDueDateStatus, getChecklistProgress, formatTimeAgo, getInitials } from '../../utils/helpers';
 import { LABEL_COLORS, COVER_COLORS } from '../../utils/colors';
+import { generateDescriptionAndChecklist, generateCardFromDescription } from '../../services/ai';
 import Avatar from '../common/Avatar';
 import './card-detail.css';
 
@@ -22,6 +24,7 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
   const [editDesc, setEditDesc] = useState(card.description || '');
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [showMembers, setShowMembers] = useState(false);
   const [showLabels, setShowLabels] = useState(false);
   const [showChecklist, setShowChecklist] = useState(false);
   const [showDueDate, setShowDueDate] = useState(false);
@@ -29,6 +32,11 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
   const [checklistTitle, setChecklistTitle] = useState('Checklist');
   const [newChecklistItems, setNewChecklistItems] = useState<Record<string, string>>({});
   const [dueInput, setDueInput] = useState(card.dueDate ? card.dueDate.split('T')[0] : '');
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [showMarkdown, setShowMarkdown] = useState(false);
+  const [markdownContent, setMarkdownContent] = useState('');
+  const [isCopied, setIsCopied] = useState(false);
 
   const updateCard = useBoardStore(s => s.updateCard);
   const deleteCard = useBoardStore(s => s.deleteCard);
@@ -40,6 +48,7 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
   const deleteChecklistItem = useBoardStore(s => s.deleteChecklistItem);
   const addComment = useBoardStore(s => s.addComment);
   const deleteComment = useBoardStore(s => s.deleteComment);
+  const createLabel = useBoardStore(s => s.createLabel);
   const lists = useBoardStore(s => s.lists);
   const currentList = lists[card.listId];
 
@@ -97,6 +106,155 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
     setShowDueDate(false);
   };
 
+  const handleAiAssist = async () => {
+    setIsAiLoading(true);
+    setAiError('');
+    try {
+      const existingLabels = board.labels.map(l => ({ name: l.name, color: l.color }));
+      const result = await generateCardFromDescription(card.title, existingLabels);
+
+      // Set description if empty
+      if (!card.description) {
+        updateCard(card.id, { description: result.description });
+        setEditDesc(result.description);
+      }
+
+      // Resolve AI-suggested labels: reuse existing or create new ones
+      if (result.labels && result.labels.length > 0 && card.labelIds.length === 0) {
+        const labelIds: string[] = [];
+        const currentBoard = useBoardStore.getState().boards[board.id];
+        for (const aiLabel of result.labels) {
+          const existing = currentBoard?.labels.find(
+            l => l.name.toLowerCase() === aiLabel.name.toLowerCase()
+          );
+          if (existing) {
+            labelIds.push(existing.id);
+          } else {
+            const newLabel = createLabel(board.id, aiLabel.name, aiLabel.color);
+            labelIds.push(newLabel.id);
+          }
+        }
+        updateCard(card.id, { labelIds });
+      }
+
+      // Auto-assign AI member if not already assigned
+      if (!card.memberIds.includes('member-ai')) {
+        updateCard(card.id, { memberIds: [...card.memberIds, 'member-ai'] });
+      }
+
+      // Add checklist with generated items
+      if (result.checklist.length > 0) {
+        addChecklist(card.id, 'Tasks');
+        const updatedCards = useBoardStore.getState().cards;
+        const updatedCard = updatedCards[card.id];
+        if (updatedCard) {
+          const newChecklist = updatedCard.checklists[updatedCard.checklists.length - 1];
+          if (newChecklist) {
+            for (const item of result.checklist) {
+              addChecklistItem(card.id, newChecklist.id, item);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'AI generation failed');
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  const generateMarkdown = () => {
+    const cardMembers = board.members.filter(m => card.memberIds.includes(m.id));
+    const lines: string[] = [];
+
+    lines.push(`# ${card.title}`);
+    lines.push('');
+
+    // Meta info
+    lines.push(`**List:** ${currentList?.title || 'Unknown'}`);
+    if (cardLabels.length > 0) {
+      lines.push(`**Labels:** ${cardLabels.map(l => l.name).join(', ')}`);
+    }
+    if (cardMembers.length > 0) {
+      lines.push(`**Members:** ${cardMembers.map(m => m.name).join(', ')}`);
+    }
+    if (card.dueDate) {
+      const status = card.isDueDateComplete ? 'Complete' : dueDateStatus === 'overdue' ? 'Overdue' : '';
+      lines.push(`**Due Date:** ${formatDueDate(card.dueDate)}${status ? ` (${status})` : ''}`);
+    }
+    lines.push('');
+
+    // Description
+    if (card.description) {
+      lines.push('## Description');
+      lines.push('');
+      lines.push(card.description);
+      lines.push('');
+    }
+
+    // Checklists
+    for (const checklist of card.checklists) {
+      const progress = getChecklistProgress(checklist.items);
+      lines.push(`## ${checklist.title} (${progress.percent}%)`);
+      lines.push('');
+      for (const item of checklist.items) {
+        lines.push(`- [${item.isChecked ? 'x' : ' '}] ${item.text}`);
+      }
+      lines.push('');
+    }
+
+    // Comments
+    if (card.comments.length > 0) {
+      lines.push('## Comments');
+      lines.push('');
+      for (const comment of card.comments) {
+        const author = board.members.find(m => m.id === comment.memberId)?.name || 'Unknown';
+        lines.push(`> **${author}** - ${formatTimeAgo(comment.createdAt)}`);
+        lines.push(`> ${comment.text}`);
+        lines.push('');
+      }
+    }
+
+    return lines.join('\n');
+  };
+
+  const handleConvertToMarkdown = () => {
+    const md = generateMarkdown();
+    setMarkdownContent(md);
+    setShowMarkdown(true);
+    setIsCopied(false);
+  };
+
+  const handleCopyMarkdown = async () => {
+    try {
+      await navigator.clipboard.writeText(markdownContent);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textarea = document.createElement('textarea');
+      textarea.value = markdownContent;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
+
+  const handleDownloadMarkdown = () => {
+    const blob = new Blob([markdownContent], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${card.title.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-').toLowerCase()}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleDelete = () => {
     if (window.confirm('Delete this card? This cannot be undone.')) {
       deleteCard(card.id);
@@ -149,7 +307,7 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
                   <span className="card-detail-meta-label">Members</span>
                   <div className="card-detail-meta-avatars">
                     {board.members.filter(m => card.memberIds.includes(m.id)).map(m => (
-                      <Avatar key={m.id} name={m.name} color={m.color} size="md" />
+                      <Avatar key={m.id} name={m.name} color={m.color} size="md" isAI={m.id === 'member-ai'} />
                     ))}
                   </div>
                 </div>
@@ -322,6 +480,44 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
                 ))}
               </div>
             </div>
+
+            {/* Markdown Export */}
+            {showMarkdown && markdownContent && (
+              <div className="card-detail-section">
+                <div className="card-detail-section-header">
+                  <FileText size={20} className="card-detail-icon" />
+                  <h3>Markdown</h3>
+                  <div className="md-header-actions">
+                    <button
+                      className="md-action-btn"
+                      onClick={handleCopyMarkdown}
+                      title="Copy to clipboard"
+                    >
+                      {isCopied ? <Check size={14} /> : <Copy size={14} />}
+                      {isCopied ? 'Copied!' : 'Copy'}
+                    </button>
+                    <button
+                      className="md-action-btn"
+                      onClick={handleDownloadMarkdown}
+                      title="Download .md file"
+                    >
+                      <Download size={14} />
+                      Download
+                    </button>
+                    <button
+                      className="md-action-btn"
+                      onClick={() => setShowMarkdown(false)}
+                      title="Hide markdown"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+                <div className="md-preview">
+                  <pre className="md-content">{markdownContent}</pre>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sidebar Actions */}
@@ -329,19 +525,37 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
             <span className="card-detail-sidebar-title">Add to card</span>
 
             {/* Members */}
-            <button
-              className="card-detail-action-btn"
-              onClick={() => {
-                const memberId = 'member-1';
-                const newMembers = card.memberIds.includes(memberId)
-                  ? card.memberIds.filter(id => id !== memberId)
-                  : [...card.memberIds, memberId];
-                updateCard(card.id, { memberIds: newMembers });
-              }}
-            >
-              <User size={16} />
-              {card.memberIds.includes('member-1') ? 'Leave' : 'Join'}
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button className="card-detail-action-btn" onClick={() => setShowMembers(!showMembers)}>
+                <User size={16} /> Members
+              </button>
+              {showMembers && (
+                <div className="card-detail-popover">
+                  <div className="card-detail-popover-header">
+                    <span>Members</span>
+                    <button onClick={() => setShowMembers(false)}><X size={14} /></button>
+                  </div>
+                  <div className="card-detail-popover-body">
+                    {board.members.map(member => (
+                      <label key={member.id} className="member-option">
+                        <input
+                          type="checkbox"
+                          checked={card.memberIds.includes(member.id)}
+                          onChange={() => {
+                            const newMembers = card.memberIds.includes(member.id)
+                              ? card.memberIds.filter(id => id !== member.id)
+                              : [...card.memberIds, member.id];
+                            updateCard(card.id, { memberIds: newMembers });
+                          }}
+                        />
+                        <Avatar name={member.name} color={member.color} size="sm" isAI={member.id === 'member-ai'} />
+                        <span className="member-option-name">{member.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Labels */}
             <div style={{ position: 'relative' }}>
@@ -460,6 +674,26 @@ const CardDetail: React.FC<CardDetailProps> = ({ card, board, onClose }) => {
                 </div>
               )}
             </div>
+
+            {/* AI Assist */}
+            <button
+              className="card-detail-action-btn card-detail-action-btn--ai"
+              onClick={handleAiAssist}
+              disabled={isAiLoading}
+            >
+              {isAiLoading ? <Loader2 size={16} className="ai-spinner" /> : <Sparkles size={16} />}
+              {isAiLoading ? 'Generating...' : 'AI Assist'}
+            </button>
+            {aiError && <div className="ai-error ai-error--sidebar">{aiError}</div>}
+
+            {/* Export to Markdown */}
+            <button
+              className="card-detail-action-btn card-detail-action-btn--md"
+              onClick={handleConvertToMarkdown}
+            >
+              <FileText size={16} />
+              {showMarkdown ? 'Refresh .md' : 'Convert to .md'}
+            </button>
 
             <span className="card-detail-sidebar-title" style={{ marginTop: 16 }}>Actions</span>
             <button className="card-detail-action-btn" onClick={() => { archiveCard(card.id); onClose(); }}>

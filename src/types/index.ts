@@ -51,6 +51,8 @@ export interface Card {
   position: number;
   createdAt: string;
   updatedAt: string;
+  claudeTaskId?: string;
+  claudeTaskStatus?: 'queued' | 'running' | 'completed' | 'failed' | 'stopped';
 }
 
 export interface Label {

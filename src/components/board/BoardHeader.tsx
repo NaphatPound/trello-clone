@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Star, Filter, MoreHorizontal } from 'lucide-react';
+import { Star, Filter, MoreHorizontal, Bot } from 'lucide-react';
 import { Board } from '../../types';
 import { useBoardStore } from '../../stores/boardStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -8,9 +8,10 @@ import './board.css';
 
 interface BoardHeaderProps {
   board: Board;
+  onOpenAssistant: () => void;
 }
 
-const BoardHeader: React.FC<BoardHeaderProps> = ({ board }) => {
+const BoardHeader: React.FC<BoardHeaderProps> = ({ board, onOpenAssistant }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(board.title);
   const [showFilter, setShowFilter] = useState(false);
@@ -87,6 +88,10 @@ const BoardHeader: React.FC<BoardHeaderProps> = ({ board }) => {
             </div>
           )}
         </div>
+        <button className="board-header-btn board-header-btn--ai" onClick={onOpenAssistant}>
+          <Bot size={16} />
+          <span>AI Assistant</span>
+        </button>
         <button className="board-header-btn" onClick={toggleBoardMenu}>
           <MoreHorizontal size={16} />
         </button>

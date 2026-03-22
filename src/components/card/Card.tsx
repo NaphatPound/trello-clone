@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { MessageSquare, Paperclip, CheckSquare, Clock, AlignLeft, Pencil } from 'lucide-react';
+import { MessageSquare, Paperclip, CheckSquare, Clock, AlignLeft, Pencil, Bot, Loader2, CircleCheck, CircleX } from 'lucide-react';
 import { Card as CardType, Board } from '../../types';
 import { useUIStore } from '../../stores/uiStore';
 import { formatDueDate, getDueDateStatus, getChecklistProgress } from '../../utils/helpers';
@@ -85,10 +85,30 @@ const Card: React.FC<CardProps> = ({ card, board, isDragging = false }) => {
             <span>{formatDueDate(card.dueDate)}</span>
           </span>
         )}
+        {card.claudeTaskStatus === 'running' || card.claudeTaskStatus === 'queued' ? (
+          <span className="card-badge card-badge--claude card-badge--claude-running" title="Claude Code task running">
+            <Loader2 size={12} className="card-claude-spin" />
+            <span>Running</span>
+          </span>
+        ) : card.claudeTaskStatus === 'completed' ? (
+          <span className="card-badge card-badge--claude card-badge--claude-done" title="Claude Code task completed">
+            <CircleCheck size={12} />
+            <span>Done</span>
+          </span>
+        ) : card.claudeTaskStatus === 'failed' || card.claudeTaskStatus === 'stopped' ? (
+          <span className="card-badge card-badge--claude card-badge--claude-failed" title={`Claude Code task ${card.claudeTaskStatus}`}>
+            <CircleX size={12} />
+            <span>{card.claudeTaskStatus === 'failed' ? 'Failed' : 'Stopped'}</span>
+          </span>
+        ) : card.claudeTaskId ? (
+          <span className="card-badge card-badge--claude" title="Claude Code task">
+            <Bot size={12} />
+          </span>
+        ) : null}
         {cardMembers.length > 0 && (
           <div className="card-members">
             {cardMembers.map(m => (
-              <Avatar key={m.id} name={m.name} color={m.color} size="sm" />
+              <Avatar key={m.id} name={m.name} color={m.color} size="sm" isAI={m.id === 'member-ai'} />
             ))}
           </div>
         )}

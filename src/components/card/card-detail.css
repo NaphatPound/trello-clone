@@ -481,6 +481,86 @@
   background: #FFEBE6;
 }
 
+.card-detail-action-btn--ai {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.card-detail-action-btn--ai:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.card-detail-action-btn--ai:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Markdown Export Button */
+.card-detail-action-btn--md {
+  background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  color: white;
+  font-weight: 600;
+}
+
+.card-detail-action-btn--md:hover {
+  opacity: 0.9;
+}
+
+/* Markdown Preview */
+.md-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.md-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.md-action-btn:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.md-preview {
+  background: #1E1E2E;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-left: 28px;
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.md-content {
+  font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #CDD6F4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+.ai-error--sidebar {
+  font-size: 11px;
+  color: #EB5A46;
+  padding: 4px 8px;
+  word-break: break-word;
+}
+
 /* Popover */
 .card-detail-popover {
   position: absolute;
@@ -553,6 +633,26 @@
   color: white;
   font-size: var(--font-size-sm);
   font-weight: 600;
+}
+
+/* Member Options */
+.member-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.member-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+}
+
+.member-option-name {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
 }
 
 /* Cover Colors */

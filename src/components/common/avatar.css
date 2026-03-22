@@ -32,3 +32,8 @@
   height: 40px;
   font-size: 14px;
 }
+
+.avatar--ai {
+  background: linear-gradient(135deg, #8B5CF6, #6D28D9) !important;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+}

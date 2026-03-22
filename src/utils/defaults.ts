@@ -9,6 +9,13 @@ const defaultMember: Member = {
   color: '#0079BF',
 };
 
+export const aiMember: Member = {
+  id: 'member-ai',
+  name: 'AI Assistant',
+  avatar: '',
+  color: '#8B5CF6',
+};
+
 export function createDemoData(): {
   workspace: Workspace;
   boards: Record<string, Board>;
@@ -67,7 +74,7 @@ export function createDemoData(): {
       background: { type: 'gradient', value: 'linear-gradient(135deg, #0079BF, #5BA4CF)' },
       listIds: [list1Id, list2Id, list3Id, list4Id],
       labels,
-      members: [defaultMember],
+      members: [defaultMember, aiMember],
       isStarred: true,
       createdAt: now,
       updatedAt: now,

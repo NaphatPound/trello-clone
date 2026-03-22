@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { Board, List, Card, Label, Checklist, ChecklistItem, CardComment, Workspace } from '../types';
-import { createDemoData } from '../utils/defaults';
+import { createDemoData, aiMember } from '../utils/defaults';
 
 const STORAGE_KEY = 'trello-clone-data';
 
@@ -78,7 +78,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     const now = new Date().toISOString();
     const board: Board = {
       id, workspaceId: get().workspace.id, title, background,
-      listIds: [], labels: [], members: [{ id: 'member-1', name: 'You', avatar: '', color: '#0079BF' }],
+      listIds: [], labels: [], members: [{ id: 'member-1', name: 'You', avatar: '', color: '#0079BF' }, aiMember],
       isStarred: false, createdAt: now, updatedAt: now,
     };
     set(state => {
@@ -483,3 +483,8 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     saveState(state);
   },
 }));
+
+// Expose store in dev mode for testing
+if (import.meta.env.DEV) {
+  (window as unknown as Record<string, unknown>).__boardStore = useBoardStore;
+}
